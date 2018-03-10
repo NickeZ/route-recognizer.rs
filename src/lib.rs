@@ -196,6 +196,24 @@ impl<T> Router<T> {
     }
 }
 
+#[derive(Clone)]
+pub struct HeapRouter<T: ?Sized> {
+    inner: Router<Box<T>>,
+}
+
+impl<T: ?Sized> HeapRouter<T> {
+    pub fn new() -> HeapRouter<T> {
+        HeapRouter{ inner: Router {nfa: NFA::new(), handlers: BTreeMap::new() } }
+    }
+    pub fn add(&mut self, route: &str, dest: Box<T>) {
+        self.inner.add(route, dest);
+    }
+
+    pub fn recognize<'a>(&'a self, path: &str) -> Result<Match<&'a T>, String> {
+        self.inner.recognize(path).map(|m| Match::new(m.handler.as_ref(), m.params))
+    }
+}
+
 fn process_static_segment<T>(segment: &str, nfa: &mut NFA<T>, mut state: usize) -> usize {
     for char in segment.chars() {
         state = nfa.put(state, CharacterClass::valid_char(char));
@@ -357,4 +375,22 @@ fn two_params(k1: &str, v1: &str, k2: &str, v2: &str) -> Params {
     map.insert(k1.to_string(), v1.to_string());
     map.insert(k2.to_string(), v2.to_string());
     map
+}
+
+#[test]
+fn test_heap_router() {
+    use std::string::String;
+    trait Handler {
+        fn call(&self) -> String;
+    }
+    struct TestHandler;
+    impl Handler for TestHandler {
+        fn call(&self) -> String { String::from("my_string")}
+    }
+    let mut router: HeapRouter<Handler> = HeapRouter::new();
+
+    router.add("/test", Box::new(TestHandler{}));
+
+    let m = router.recognize("/test").unwrap();
+    assert_eq!(*m.handler.call(), "my_string".to_string());
 }
