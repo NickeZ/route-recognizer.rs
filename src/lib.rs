@@ -27,18 +27,18 @@ impl Metadata {
 
 impl Ord for Metadata {
     fn cmp(&self, other: &Metadata) -> Ordering {
-        if self.stars > other.stars {
-            Ordering::Less
-        } else if self.stars < other.stars {
+        if self.statics > other.statics {
             Ordering::Greater
-        } else if self.dynamics > other.dynamics {
-            Ordering::Less
-        } else if self.dynamics < other.dynamics {
-            Ordering::Greater
-        } else if self.statics > other.statics {
-            Ordering::Less
         } else if self.statics < other.statics {
+            Ordering::Less
+        } else if self.dynamics > other.dynamics {
             Ordering::Greater
+        } else if self.dynamics < other.dynamics {
+            Ordering::Less
+        } else if self.stars > other.stars {
+            Ordering::Greater
+        } else if self.stars < other.stars {
+            Ordering::Less
         } else {
             Ordering::Equal
         }
@@ -343,8 +343,42 @@ fn star() {
     assert_eq!(m.params, params("foo", "foo/bar"));
 
     let m = router.recognize("/bar/foo").unwrap();
-    assert_eq!(*m.handler, "test".to_string());
-    assert_eq!(m.params, params("foo", "bar/foo"));
+    assert_eq!(*m.handler, "test2".to_string());
+    assert_eq!(m.params, params("foo", "foo"));
+}
+
+#[test]
+fn star_colon() {
+    let mut router = Router::new();
+
+    router.add("/a/*b", "ab".to_string());
+    router.add("/a/*b/c", "abc".to_string());
+    router.add("/a/*b/c/:d", "abcd".to_string());
+
+    let m = router.recognize("/a/foo").unwrap();
+    assert_eq!(*m.handler, "ab".to_string());
+    assert_eq!(m.params, params("b", "foo"));
+
+    let m = router.recognize("/a/foo/bar").unwrap();
+    assert_eq!(*m.handler, "ab".to_string());
+    assert_eq!(m.params, params("b", "foo/bar"));
+
+    let m = router.recognize("/a/foo/c").unwrap();
+    assert_eq!(*m.handler, "abc".to_string());
+    assert_eq!(m.params, params("b", "foo"));
+
+    let m = router.recognize("/a/foo/bar/c").unwrap();
+    assert_eq!(*m.handler, "abc".to_string());
+    assert_eq!(m.params, params("b", "foo/bar"));
+
+    let m = router.recognize("/a/foo/c/baz").unwrap();
+    assert_eq!(*m.handler, "abcd".to_string());
+    assert_eq!(m.params, two_params("b", "foo", "d", "baz"));
+
+    let m = router.recognize("/a/foo/bar/c/baz").unwrap();
+    assert_eq!(*m.handler, "abcd".to_string());
+    assert_eq!(m.params, two_params("b", "foo/bar", "d", "baz"));
+
 }
 
 #[bench]
